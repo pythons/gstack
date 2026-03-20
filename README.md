@@ -58,21 +58,30 @@ Real files get committed to your repo (not a submodule), so `git clone` just wor
 
 ### Codex, Gemini CLI, or Cursor
 
-gstack works on any agent that supports the [SKILL.md standard](https://github.com/anthropics/claude-code). Skills live in `.agents/skills/` and are discovered automatically.
+gstack works on any agent that supports the [SKILL.md standard](https://github.com/anthropics/claude-code). Skills live in `.agents/skills/` or `.cursor/skills/` and are discovered automatically.
+
+**Codex:**
 
 ```bash
 git clone https://github.com/garrytan/gstack.git ~/.codex/skills/gstack
 cd ~/.codex/skills/gstack && ./setup --host codex
 ```
 
-Or let setup auto-detect which agents you have installed:
+**Cursor Agent:**
+
+```bash
+git clone https://github.com/garrytan/gstack.git ~/.cursor/skills/gstack
+cd ~/.cursor/skills/gstack && ./setup --host cursor
+```
+
+**Auto-detect** — installs for whichever agents you have:
 
 ```bash
 git clone https://github.com/garrytan/gstack.git ~/gstack
 cd ~/gstack && ./setup --host auto
 ```
 
-This installs to `~/.claude/skills/gstack` and/or `~/.codex/skills/gstack` depending on what's available. All 21 skills work across all supported agents. Hook-based safety skills (careful, freeze, guard) use inline safety advisory prose on non-Claude hosts.
+This installs to `~/.claude/skills/gstack`, `~/.codex/skills/gstack`, and/or `~/.cursor/skills/gstack` depending on what's available. All 21 skills work across all supported agents. Hook-based safety skills (careful, freeze, guard) use inline safety advisory prose on non-Claude hosts.
 
 ## See it work
 
