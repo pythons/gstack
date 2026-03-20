@@ -3,6 +3,7 @@ node_modules/
 browse/dist/
 .gstack/
 .claude/skills/
+.cursor/skills/
 .context/
 /tmp/
 *.log

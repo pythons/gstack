@@ -19,7 +19,7 @@ const DRY_RUN = process.argv.includes('--dry-run');
 
 // ─── Template Context ───────────────────────────────────────
 
-type Host = 'claude' | 'codex';
+type Host = 'claude' | 'codex' | 'cursor';
 
 const HOST_ARG = process.argv.find(a => a.startsWith('--host'));
 const HOST: Host = (() => {
@@ -27,7 +27,8 @@ const HOST: Host = (() => {
   const val = HOST_ARG.includes('=') ? HOST_ARG.split('=')[1] : process.argv[process.argv.indexOf(HOST_ARG) + 1];
   if (val === 'codex' || val === 'agents') return 'codex';
   if (val === 'claude') return 'claude';
-  throw new Error(`Unknown host: ${val}. Use claude, codex, or agents.`);
+  if (val === 'cursor') return 'cursor';
+  throw new Error(`Unknown host: ${val}. Use claude, codex, cursor, or agents.`);
 })();
 
 interface HostPaths {
@@ -49,6 +50,12 @@ const HOST_PATHS: Record<Host, HostPaths> = {
     localSkillRoot: '.agents/skills/gstack',
     binDir: '~/.codex/skills/gstack/bin',
     browseDir: '~/.codex/skills/gstack/browse/dist',
+  },
+  cursor: {
+    skillRoot: '~/.cursor/skills/gstack',
+    localSkillRoot: '.cursor/skills/gstack',
+    binDir: '~/.cursor/skills/gstack/bin',
+    browseDir: '~/.cursor/skills/gstack/browse/dist',
   },
 };
 
@@ -1255,7 +1262,7 @@ const RESOLVERS: Record<string, (ctx: TemplateContext) => string> = {
   TEST_BOOTSTRAP: generateTestBootstrap,
 };
 
-// ─── Codex Helpers ───────────────────────────────────────────
+// ─── Non-Claude Host Helpers ─────────────────────────────────
 
 function codexSkillName(skillDir: string): string {
   if (skillDir === '.' || skillDir === '') return 'gstack';
@@ -1265,7 +1272,7 @@ function codexSkillName(skillDir: string): string {
 }
 
 /**
- * Transform frontmatter for Codex: keep only name + description.
+ * Transform frontmatter for non-Claude hosts: keep only name + description.
  * Strips allowed-tools, hooks, version, and all other fields.
  * Handles multiline block scalar descriptions (YAML | syntax).
  */
@@ -1364,10 +1371,15 @@ function processTemplate(tmplPath: string, host: Host = 'claude'): { outputPath:
   // Determine skill directory relative to ROOT
   const skillDir = path.relative(ROOT, path.dirname(tmplPath));
 
-  // For codex host, route output to .agents/skills/{codexSkillName}/SKILL.md
+  // For codex/cursor hosts, route output to host-specific skills directory
   if (host === 'codex') {
     const codexName = codexSkillName(skillDir === '.' ? '' : skillDir);
     const outputDir = path.join(ROOT, '.agents', 'skills', codexName);
+    fs.mkdirSync(outputDir, { recursive: true });
+    outputPath = path.join(outputDir, 'SKILL.md');
+  } else if (host === 'cursor') {
+    const cursorName = codexSkillName(skillDir === '.' ? '' : skillDir);
+    const outputDir = path.join(ROOT, '.cursor', 'skills', cursorName);
     fs.mkdirSync(outputDir, { recursive: true });
     outputPath = path.join(outputDir, 'SKILL.md');
   }
@@ -1390,8 +1402,8 @@ function processTemplate(tmplPath: string, host: Host = 'claude'): { outputPath:
     throw new Error(`Unresolved placeholders in ${relTmplPath}: ${remaining.join(', ')}`);
   }
 
-  // For codex host: transform frontmatter and replace Claude-specific paths
-  if (host === 'codex') {
+  // For non-Claude hosts: transform frontmatter and replace Claude-specific paths
+  if (host === 'codex' || host === 'cursor') {
     // Extract hook safety prose BEFORE transforming frontmatter (which strips hooks)
     const safetyProse = extractHookSafetyProse(tmplContent);
 
@@ -1405,10 +1417,16 @@ function processTemplate(tmplPath: string, host: Host = 'claude'): { outputPath:
     }
 
     // Replace remaining hardcoded Claude paths with host-appropriate paths
+    const localReviewPath = host === 'cursor'
+      ? '.cursor/skills/gstack/review'
+      : '.agents/skills/gstack/review';
+    const localSkillsDir = host === 'cursor'
+      ? '.cursor/skills'
+      : '.agents/skills';
     content = content.replace(/~\/\.claude\/skills\/gstack/g, ctx.paths.skillRoot);
     content = content.replace(/\.claude\/skills\/gstack/g, ctx.paths.localSkillRoot);
-    content = content.replace(/\.claude\/skills\/review/g, '.agents/skills/gstack/review');
-    content = content.replace(/\.claude\/skills/g, '.agents/skills');
+    content = content.replace(/\.claude\/skills\/review/g, localReviewPath);
+    content = content.replace(/\.claude\/skills/g, localSkillsDir);
   }
 
   // Prepend generated header (after frontmatter)
@@ -1442,8 +1460,8 @@ function findTemplates(): string[] {
 let hasChanges = false;
 
 for (const tmplPath of findTemplates()) {
-  // Skip /codex skill for codex host (self-referential — it's a Claude wrapper around codex exec)
-  if (HOST === 'codex') {
+  // Skip /codex skill for non-Claude hosts (it's a Claude wrapper around codex exec)
+  if (HOST === 'codex' || HOST === 'cursor') {
     const dir = path.basename(path.dirname(tmplPath));
     if (dir === 'codex') continue;
   }

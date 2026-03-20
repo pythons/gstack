@@ -707,14 +707,15 @@ describe('setup script validation', () => {
     expect(fnBody).toContain('ln -snf "gstack/$skill_name"');
   });
 
-  test('setup supports --host auto|claude|codex', () => {
+  test('setup supports --host auto|claude|codex|cursor', () => {
     expect(setupContent).toContain('--host');
-    expect(setupContent).toContain('claude|codex|auto');
+    expect(setupContent).toContain('claude|codex|cursor|auto');
   });
 
-  test('auto mode detects claude and codex binaries', () => {
+  test('auto mode detects claude, codex, and cursor binaries', () => {
     expect(setupContent).toContain('command -v claude');
     expect(setupContent).toContain('command -v codex');
+    expect(setupContent).toContain('command -v cursor');
   });
 
   test('create_agents_sidecar links runtime assets', () => {
